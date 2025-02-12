@@ -6,16 +6,14 @@ This script analyzes muon lifetime data from CSV files by performing exponential
 and providing various analysis modes.
 
 Modes:
-    - fit: Basic analysis using predefined time/voltage bounds (or user-provided)
-    - search: Find bounds that yield a lifetime (τ) closest to target value
-    - diagnose: Detailed diagnostic analysis
-    - all: Run all three modes sequentially
+    - Basic Fit Analysis: Uses provided (or default) bounds to fit the decay.
+    - Search for Optimal Bounds: Finds time bounds that yield a lifetime (τ) closest to a target.
+    - Diagnostics: Runs comprehensive diagnostic analyses.
+    - All Analyses: Runs the basic fit, optimal-bound search, and diagnostics sequentially.
+    - Compare Two Bounds: Compares fits from two user-specified time bounds.
 
 Usage:
-    python muon_lifetime.py --csv data.csv --mode fit
-    python muon_lifetime.py --csv data.csv --mode search --target_tau 2.197
-    python muon_lifetime.py --csv data.csv --mode diagnose
-    python muon_lifetime.py --csv data.csv --mode all
+    python muon_lifetime.py
 """
 
 import argparse
@@ -40,7 +38,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configure plotting style
-sns.set_theme(style="whitegrid", context="talk", palette="Purples")
+plt.style.use('default')
 
 
 def read_csv_file(csv_path: str, separators: Optional[List[str]] = None) -> pd.DataFrame:
@@ -61,12 +59,10 @@ def read_csv_file(csv_path: str, separators: Optional[List[str]] = None) -> pd.D
                 return df.astype({"Time": float, "Counts": float})
         except Exception as e:
             logger.debug(f"Failed with separator '{sep}': {e}")
-            logger.debug(f"Error details: {e}")
     
     # Try auto-detection as last resort
     try:
-        df = pd.read_csv(csv_path, sep=None, engine='python', 
-                         header=None, names=["Time", "Counts"])
+        df = pd.read_csv(csv_path, sep=None, engine='python', header=None, names=["Time", "Counts"])
         logger.info("Successfully read CSV by auto-detecting separator")
         return df.astype({"Time": float, "Counts": float})
     except Exception as e:
@@ -142,15 +138,14 @@ def plot_results(
 
     # Main fit plot
     plt.figure(figsize=(14, 8))
-    sns.scatterplot(x=t_data, y=counts, color='#7571B7', 
-                    s=60, edgecolor='black', label='Data')
-    sns.lineplot(x=t_fit, y=counts_fit, color='#AAA9D4', 
-                 linewidth=2, label='Fit')
+    plt.scatter(t_data, counts, label='Data', alpha=0.6)
+    plt.plot(t_fit, counts_fit, 'r-', label='Fit')
     
     plt.title(f"Muon Lifetime Data {bounds[0]}–{bounds[1]}", fontsize=16)
     plt.xlabel("Time (µs)", fontsize=14)
     plt.ylabel("Counts", fontsize=14)
     plt.legend(fontsize=12)
+    plt.grid(True)
 
     # Add fit parameters text box
     fit_text = (
@@ -163,7 +158,7 @@ def plot_results(
         transform=plt.gca().transAxes,
         fontsize=12,
         verticalalignment="top",
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.3)
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.9)
     )
 
     if save_fig:
@@ -176,13 +171,12 @@ def plot_results(
 
     # Residuals plot
     plt.figure(figsize=(14, 4))
-    sns.scatterplot(x=t_data, y=residuals, color='#7571B7', 
-                    s=60, edgecolor='black')
-    plt.axhline(0, color='red', linestyle='--')
+    plt.scatter(t_data, residuals)
+    plt.axhline(0, color='r', linestyle='--')
     plt.title("Residuals", fontsize=16)
     plt.xlabel("Time (µs)", fontsize=14)
     plt.ylabel("Residuals", fontsize=14)
-    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.grid(True)
 
     if save_fig:
         res_filename = f"{prefix}_{bounds[0]}_{bounds[1]}_residuals.png"
@@ -377,13 +371,13 @@ def run_diagnostics(
             
         try:
             p0 = [float(np.max(counts[mask])), 2.2, float(np.min(counts[mask]))]
-            bounds = ([0, 1.5, 0], [np.inf, 3.0, np.inf])
+            bounds_fit = ([0, 1.5, 0], [np.inf, 3.0, np.inf])
             popt, pcov = curve_fit(
                 exponential_decay,
                 t_data[mask],
                 counts[mask],
                 p0=p0,
-                bounds=bounds
+                bounds=bounds_fit
             )
             
             tau = popt[1]
@@ -488,18 +482,6 @@ def get_data_files() -> List[str]:
     return csv_files
 
 
-def print_menu() -> None:
-    """Display the main menu."""
-    print("\nMuon Lifetime Analysis Menu")
-    print("=" * 30)
-    print("1. Basic Fit Analysis")
-    print("2. Search for Optimal Bounds")
-    print("3. Run Diagnostics")
-    print("4. Run All Analyses")
-    print("5. Exit")
-    print("=" * 30)
-
-
 def select_file() -> Optional[str]:
     """Interactive file selection."""
     csv_files = get_data_files()
@@ -525,21 +507,153 @@ def select_file() -> Optional[str]:
             print("Please enter a valid number.")
 
 
+def plot_comparative_results(
+    results: List[Dict[str, Any]],
+    save_fig: bool = False,
+    prefix: str = "muon_lifetime"
+) -> None:
+    """Plot comparative results for two different bounds."""
+    if len(results) != 2:
+        logger.error("Exactly two results required for comparative plot")
+        return
+
+    fig = plt.figure(figsize=(16, 12))
+    gs = fig.add_gridspec(3, 2, height_ratios=[3, 1, 1])
+
+    # Plot fits
+    for idx, result in enumerate(results):
+        ax_fit = fig.add_subplot(gs[0, idx])
+        
+        t_data = result["t_data"]
+        counts = result["counts"]
+        popt = result["popt"]
+        perr = result["perr"]
+        bounds = result["bounds"]
+        
+        # Generate fit curve
+        t_fit = np.linspace(float(np.min(t_data)), float(np.max(t_data)), 500)
+        counts_fit = exponential_decay(t_fit, *popt)
+        
+        # Plot data and fit
+        ax_fit.scatter(t_data, counts, label='Data', alpha=0.6)
+        ax_fit.plot(t_fit, counts_fit, 'r-', label='Fit')
+        
+        ax_fit.set_title(f"Bounds: {bounds[0]:.2f}–{bounds[1]:.2f} µs", fontsize=14)
+        ax_fit.set_xlabel("Time (µs)", fontsize=16)
+        ax_fit.set_ylabel("Counts", fontsize=16)
+        ax_fit.legend(fontsize=10)
+        ax_fit.grid(True)
+        
+        # Add fit parameters text box
+        fit_text = (
+            f"A = {popt[0]:.2f} ± {perr[0]:.2f}\n"
+            f"τ = {popt[1]:.2f} ± {perr[1]:.2f} µs\n"
+            f"C = {popt[2]:.2f} ± {perr[2]:.2f}"
+        )
+        ax_fit.text(
+            0.95, 0.95, fit_text,
+            transform=ax_fit.transAxes,
+            fontsize=16,
+            verticalalignment="top",
+            horizontalalignment="right",
+            bbox=dict(boxstyle="round", facecolor="white", alpha=0.9)
+        )
+
+    # Plot residuals
+    for idx, result in enumerate(results):
+        ax_res = fig.add_subplot(gs[idx + 1, :])
+        
+        t_data = result["t_data"]
+        counts = result["counts"]
+        popt = result["popt"]
+        bounds = result["bounds"]
+        
+        residuals = counts - exponential_decay(t_data, *popt)
+        
+        ax_res.scatter(t_data, residuals, alpha=0.6)
+        ax_res.axhline(0, color='r', linestyle='--')
+        
+        ax_res.set_title(f"Residuals ({bounds[0]:.2f}–{bounds[1]:.2f} µs)", fontsize=12)
+        ax_res.set_xlabel("Time (µs)", fontsize=12)
+        ax_res.set_ylabel("Residuals", fontsize=12)
+        ax_res.grid(True)
+
+    plt.tight_layout()
+    
+    if save_fig:
+        filename = f"{prefix}_comparative_analysis.png"
+        plt.savefig(filename, bbox_inches="tight", dpi=300)
+        logger.info(f"Saved comparative plot: {filename}")
+    
+    plt.show()
+
+
+def print_menu() -> None:
+    """Display the main menu."""
+    print("\nMuon Lifetime Analysis Menu")
+    print("=" * 30)
+    print("1. Basic Fit Analysis")
+    print("2. Search for Optimal Bounds")
+    print("3. Run Diagnostics")
+    print("4. Run All Analyses")
+    print("5. Compare Two Bounds")
+    print("6. Exit")
+    print("=" * 30)
+
+
+def get_bounds_input() -> Optional[Tuple[float, float]]:
+    """Get bounds input from user."""
+    try:
+        bounds_str = input("Enter bounds as 'lower,upper' (e.g., '0.1,3.5'): ").strip()
+        if not bounds_str:
+            return None
+        lb, ub = map(float, bounds_str.split(','))
+        return (lb, ub)
+    except ValueError:
+        logger.error("Invalid bounds format")
+        return None
+
+
+def compare_two_bounds(data: pd.DataFrame, time_factor: float = 1.0, save_plots: bool = False) -> None:
+    """Run comparative analysis for two different bounds."""
+    logger.info("\nComparative Bounds Analysis")
+    logger.info("Enter bounds for first fit:")
+    bounds1 = get_bounds_input()
+    if not bounds1:
+        return
+
+    logger.info("\nEnter bounds for second fit:")
+    bounds2 = get_bounds_input()
+    if not bounds2:
+        return
+
+    results = process_bounds(
+        data,
+        [bounds1, bounds2],
+        zero_threshold=250,
+        time_factor=time_factor,
+        save_plots=False  # Don't save individual plots
+    )
+
+    if len(results) == 2:
+        plot_comparative_results(results, save_fig=save_plots)
+    else:
+        logger.error("Failed to generate both fits for comparison")
+
+
 def main() -> None:
     """Interactive main entry point for analysis."""
     while True:
         print_menu()
-        
-        choice = input("Enter your choice (1-5): ").strip()
-        if choice == "5":
+        choice = input("Enter your choice (1-6): ").strip()
+        if choice == "6":
             print("Exiting program...")
             break
-        
-        if choice not in ["1", "2", "3", "4"]:
+        if choice not in ["1", "2", "3", "4", "5"]:
             print("Invalid choice. Please try again.")
             continue
 
-        # Now ask which data file to use
+        # Ask which data file to use
         file_path = select_file()
         if not file_path:
             continue
@@ -564,27 +678,20 @@ def main() -> None:
             input("\nPress Enter to return to main menu...")
             continue
 
-        # Default set of bounds
-        default_bounds = [
-            (0, 3.5), (0.1, 3.5), (0.3, 3.5),
-            (0.5, 3.5), (0, 4.0), (0, 4.5),
-            (0, 5), (0, 5.5), (0, 6.0)
-        ]
-
-        # 1) Basic Fit
-        if choice in ["1", "4"]:
+        if choice == "1":
+            # Basic Fit Analysis
             logger.info("\nRunning basic fit analysis...")
-
-            # Ask user if they want custom bounds
             print("\nEnter custom bounds as (lb, ub); (lb2, ub2); etc.")
             print("Example: (0,3.5);(0.1,3.5)")
             custom_bounds_str = input("Press ENTER for default bounds: ").strip()
-
+            default_bounds = [
+                (0, 3.5), (0.1, 3.5), (0.3, 3.5),
+                (0.5, 3.5), (0, 4.0), (0, 4.5),
+                (0, 5), (0, 5.5), (0, 6.0)
+            ]
             if not custom_bounds_str:
-                # Use default if empty
                 used_bounds = default_bounds
             else:
-                # Attempt to parse
                 used_bounds = []
                 for chunk in custom_bounds_str.split(';'):
                     chunk = chunk.strip()
@@ -592,18 +699,15 @@ def main() -> None:
                         continue
                     try:
                         parsed = ast.literal_eval(chunk)
-                        # parsed should be something like (0, 3.5)
                         lb_val = float(parsed[0])
                         ub_val = float(parsed[1])
                         used_bounds.append((lb_val, ub_val))
                     except Exception as pe:
                         logger.warning(f"Failed to parse '{chunk}': {pe}")
-
                 if not used_bounds:
                     logger.warning("No valid custom bounds parsed, using defaults.")
                     used_bounds = default_bounds
 
-            # Now run
             results = process_bounds(
                 data,
                 used_bounds,
@@ -617,20 +721,16 @@ def main() -> None:
                     lb, ub = res["bounds"]
                     popt, perr = res["popt"], res["perr"]
                     logger.info(
-                        f"Bounds {lb:.2f}–{ub:.2f}: "
-                        f"A={popt[0]:.2f}±{perr[0]:.2f}, "
-                        f"τ={popt[1]:.2f}±{perr[1]:.2f} µs, "
-                        f"C={popt[2]:.2f}±{perr[2]:.2f}"
+                        f"Bounds {lb:.2f}–{ub:.2f}: A={popt[0]:.2f}±{perr[0]:.2f}, "
+                        f"τ={popt[1]:.2f}±{perr[1]:.2f} µs, C={popt[2]:.2f}±{perr[2]:.2f}"
                     )
-
-        # 2) Search for best bounds
-        if choice in ["2", "4"]:
+        elif choice == "2":
+            # Search for Optimal Bounds
             target_str = input("Enter target τ value (default 2.197 µs): ").strip() or "2.197"
             try:
                 target_tau = float(target_str)
             except ValueError:
                 target_tau = 2.197
-
             logger.info(f"\nSearching for optimal bounds (target τ={target_tau} µs)...")
             best_candidate = search_optimal_bounds(
                 data,
@@ -647,15 +747,66 @@ def main() -> None:
                     f"Fitted τ={best_candidate['tau_fit']:.4f} µs\n"
                     f"Deviation from target: {best_candidate['tau_error']:.4f} µs"
                 )
-
-        # 3) Diagnostics
-        if choice in ["3", "4"]:
+        elif choice == "3":
+            # Diagnostics
             logger.info("\nRunning diagnostic analysis...")
             diagnostics = run_diagnostics(data, time_factor=conversion)
             logger.info("\nDiagnostic Results Summary:")
             for key, value in diagnostics.items():
                 logger.info(f"{key}: {value}")
-
+        elif choice == "4":
+            # Run All Analyses: Basic Fit, Search, and Diagnostics
+            logger.info("\nRunning basic fit analysis (All Analyses)...")
+            default_bounds = [
+                (0, 3.5), (0.1, 3.5), (0.3, 3.5),
+                (0.5, 3.5), (0, 4.0), (0, 4.5),
+                (0, 5), (0, 5.5), (0, 6.0)
+            ]
+            results = process_bounds(
+                data,
+                default_bounds,
+                zero_threshold=250,
+                time_factor=conversion,
+                save_plots=save_plots
+            )
+            if results:
+                logger.info("\nFit Results Summary:")
+                for res in results:
+                    lb, ub = res["bounds"]
+                    popt, perr = res["popt"], res["perr"]
+                    logger.info(
+                        f"Bounds {lb:.2f}–{ub:.2f}: A={popt[0]:.2f}±{perr[0]:.2f}, "
+                        f"τ={popt[1]:.2f}±{perr[1]:.2f} µs, C={popt[2]:.2f}±{perr[2]:.2f}"
+                    )
+            target_str = input("Enter target τ value (default 2.197 µs): ").strip() or "2.197"
+            try:
+                target_tau = float(target_str)
+            except ValueError:
+                target_tau = 2.197
+            logger.info(f"\nSearching for optimal bounds (target τ={target_tau} µs)...")
+            best_candidate = search_optimal_bounds(
+                data,
+                target_tau=target_tau,
+                zero_threshold=250,
+                time_factor=conversion,
+                verbose=True,
+                plot_best=True
+            )
+            if best_candidate:
+                lb, ub = best_candidate["bounds"]
+                logger.info(
+                    f"\nOptimal bounds found: {lb:.2f}–{ub:.2f}\n"
+                    f"Fitted τ={best_candidate['tau_fit']:.4f} µs\n"
+                    f"Deviation from target: {best_candidate['tau_error']:.4f} µs"
+                )
+            logger.info("\nRunning diagnostic analysis (All Analyses)...")
+            diagnostics = run_diagnostics(data, time_factor=conversion)
+            logger.info("\nDiagnostic Results Summary:")
+            for key, value in diagnostics.items():
+                logger.info(f"{key}: {value}")
+        elif choice == "5":
+            # Compare Two Bounds
+            compare_two_bounds(data, time_factor=conversion, save_plots=save_plots)
         input("\nPress Enter to continue...")
 
 
