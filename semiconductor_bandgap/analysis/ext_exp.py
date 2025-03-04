@@ -7,6 +7,10 @@ from convert_txt_to_csv import convert_txt_to_csv
 # Boltzmann constant in eV/K
 K_BOLTZMANN = 8.617333262e-5  # eV/K
 
+# Global color variables
+PRIMARY_COLOR = '#787878'    # Color for all data points
+SECONDARY_COLOR = '#811cea'   # Color for analysis region and fit line
+
 def analyze_semiconductor_bandgap(file_path, min_temp=500, max_temp=None):
     """
     Analyze semiconductor bandgap energy from temperature-resistance data.
@@ -74,7 +78,7 @@ def analyze_semiconductor_bandgap(file_path, min_temp=500, max_temp=None):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
     
     # Plot 1: Original resistance vs temperature data
-    ax1.plot(data['Temperature'], data['Resistance'], 'o-', markersize=3, alpha=0.5)
+    ax1.plot(data['Temperature'], data['Resistance'], 'o-', color=PRIMARY_COLOR, markersize=3, alpha=0.5)
     
     # Label for the analysis region in the legend
     if max_temp is not None:
@@ -82,8 +86,8 @@ def analyze_semiconductor_bandgap(file_path, min_temp=500, max_temp=None):
     else:
         analysis_label = f'Analysis Region (T ≥ {min_temp}K)'
     
-    ax1.plot(filtered_data['Temperature'], filtered_data['Resistance'], 'ro', markersize=4,
-            label=analysis_label)
+    ax1.plot(filtered_data['Temperature'], filtered_data['Resistance'], 'o', 
+             color=SECONDARY_COLOR, markersize=4, label=analysis_label)
     ax1.set_xlabel('Temperature (K)')
     ax1.set_ylabel('Resistance (Ω)')
     ax1.set_title('Semiconductor Resistance vs Temperature')
@@ -91,12 +95,13 @@ def analyze_semiconductor_bandgap(file_path, min_temp=500, max_temp=None):
     ax1.legend()
     
     # Plot 2: Linearized data and fit
-    ax2.scatter(filtered_data['1/T'], filtered_data['ln(R/T^(3/2))'], label='Data Points')
+    ax2.scatter(filtered_data['1/T'], filtered_data['ln(R/T^(3/2))'], 
+                color=PRIMARY_COLOR, label='Data Points')
     
     # Add the linear fit
     x_fit = np.linspace(filtered_data['1/T'].min(), filtered_data['1/T'].max(), 100)
     y_fit = slope * x_fit + intercept
-    ax2.plot(x_fit, y_fit, 'r-', label='Linear Fit')
+    ax2.plot(x_fit, y_fit, '-', color=SECONDARY_COLOR, label='Linear Fit')
     
     ax2.set_xlabel('1/T (K^-1)')
     ax2.set_ylabel('ln(R/T^(3/2))')
