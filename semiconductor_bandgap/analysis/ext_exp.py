@@ -143,14 +143,12 @@ def analyze_semiconductor_bandgap(file_path, min_temp=500, max_temp=None):
 
 # Main execution
 if __name__ == "__main__":
-    # path = "/Users/bekheet/Documents/*Eng. Physics/Winter 2025/453 - Advanced Physics Laboratory/453-ADV-PHYS-LAB/semiconductor_bandgap/analysis/data_files/feb25test2.csv"
-    # path = "data_files/feb25test2_cleaned.csv"
-    # txtpath = "data_files/mar4_ptype_test1.txt"
-    # path = convert_txt_to_csv(txtpath)
-    path = "data_files/mar4_ptype_test1.csv"
+    txtpath = "data_files/mar4_ptype_test2.txt"
+    path = convert_txt_to_csv(txtpath)
+    # path = "data_files/mar4_ptype_test1.csv"
     
     # Example usage with both min and max temperature specified
-    results = analyze_semiconductor_bandgap(path, min_temp=300, max_temp=316)
+    results = analyze_semiconductor_bandgap(path, min_temp=320, max_temp=340)
     
     print(f"Bandgap Energy: {results['bandgap_energy_eV']:.4f} ± {results['bandgap_error_eV']:.4f} eV")
     print(f"R-squared: {results['r_squared']:.4f}")
