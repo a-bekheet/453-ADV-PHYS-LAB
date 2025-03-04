@@ -517,12 +517,12 @@ class MuonLifetimeGUI(QMainWindow):
                     
                     # Plot data points
                     ax.scatter(result["t_data"], result["counts"], 
-                             label="Data", alpha=0.5, color='blue')
+                             label="Data", alpha=0.6)
                     
                     # Plot fit line
                     t_fit = np.linspace(min(result["t_data"]), max(result["t_data"]), 500)
                     counts_fit = ml.exponential_decay(t_fit, *result["popt"])
-                    ax.plot(t_fit, counts_fit, 'r-', label="Fit", linewidth=2)
+                    ax.plot(t_fit, counts_fit, 'r-', label="Fit")
                     
                     # Add labels and title
                     lb, ub = result["bounds"]
@@ -540,9 +540,9 @@ class MuonLifetimeGUI(QMainWindow):
                            transform=ax.transAxes,
                            verticalalignment='top',
                            horizontalalignment='right',
-                           bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                           bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
                     
-                    ax.grid(True, alpha=0.3)
+                    ax.grid(True)
                     ax.legend()
 
             elif "search" in results and results["search"]:
@@ -550,18 +550,22 @@ class MuonLifetimeGUI(QMainWindow):
                 result = results["search"]
                 ax = self.figure.add_subplot(111)
                 
+                # Plot data points
                 ax.scatter(result["t_data"], result["counts"], 
-                         label="Data", alpha=0.5, color='blue')
+                         label="Data", alpha=0.6)
                 
+                # Plot fit line
                 t_fit = np.linspace(min(result["t_data"]), max(result["t_data"]), 500)
                 counts_fit = ml.exponential_decay(t_fit, *result["popt"])
-                ax.plot(t_fit, counts_fit, 'r-', label="Best Fit", linewidth=2)
+                ax.plot(t_fit, counts_fit, 'r-', label="Best Fit")
                 
+                # Add labels and title
                 lb, ub = result["bounds"]
                 ax.set_xlabel("Time (µs)")
                 ax.set_ylabel("Counts")
                 ax.set_title(f"Optimal Bounds: {lb:.2f}–{ub:.2f} µs")
                 
+                # Add fit parameters text box
                 fit_text = (
                     f"A = {result['popt'][0]:.2f}±{result['perr'][0]:.2f}\n"
                     f"τ = {result['popt'][1]:.3f}±{result['perr'][1]:.3f} µs\n"
@@ -571,14 +575,16 @@ class MuonLifetimeGUI(QMainWindow):
                        transform=ax.transAxes,
                        verticalalignment='top',
                        horizontalalignment='right',
-                       bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                       bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
                 
-                ax.grid(True, alpha=0.3)
+                ax.grid(True)
                 ax.legend()
             
             # Adjust layout to prevent overlapping
             self.figure.tight_layout()
-            self.canvas.draw()
+            
+            # Draw the canvas
+            self.canvas.draw_idle()
             
         except Exception as e:
             QMessageBox.warning(self, "Plot Error", 
