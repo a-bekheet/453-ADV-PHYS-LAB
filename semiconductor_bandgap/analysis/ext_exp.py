@@ -148,12 +148,13 @@ def analyze_semiconductor_bandgap(file_path, min_temp=500, max_temp=None):
 
 # Main execution
 if __name__ == "__main__":
-    txtpath = "data_files/mar4_ptype_test2.txt"
+    # txtpath = ["feb_13_RoomTempHold.txt", "feb27_Ge_run1.txt", "feb27_Ge_run2.txt", "feb27_Ge_run3.txt"]
+    txtpath = "data_files/feb27_Ge_run1.txt"
     path = convert_txt_to_csv(txtpath)
     # path = "data_files/mar4_ptype_test1.csv"
     
     # Example usage with both min and max temperature specified
-    results = analyze_semiconductor_bandgap(path, min_temp=320, max_temp=340)
+    results = analyze_semiconductor_bandgap(path, min_temp=320, max_temp=400)
     
     print(f"Bandgap Energy: {results['bandgap_energy_eV']:.4f} ± {results['bandgap_error_eV']:.4f} eV")
     print(f"R-squared: {results['r_squared']:.4f}")
