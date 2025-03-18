@@ -22,7 +22,7 @@ CONFIDENCE_BAND_COLOR = '#811cea'  # Color for confidence bands
 TEXT_BOX_COLOR = 'lightblue'    # Color for text boxes
 GRID_COLOR = '#DDDDDD'          # Color for grid lines
 
-CUSTOM_TITLE = "Silicon (N-Type) Sample"
+CUSTOM_TITLE = "Germanium Sample"
 PATH = "data_files/feb_13_ntype_run1.txt"
 
 def calculate_error_propagation(temperatures, resistances, mean_inv_temp):
@@ -270,7 +270,7 @@ def analyze_semiconductor_bandgap(file_path, min_temp=500, max_temp=None, custom
         f"Temperature: {filtered_data['T_contrib_pct'].mean():.1f}%"
     ))
     props3 = dict(boxstyle='round', facecolor=TEXT_BOX_COLOR, alpha=0.5)
-    ax3.text(0.05, 0.95, textstr3, transform=ax3.transAxes, fontsize=10,
+    ax3.text(0.70, 0.2, textstr3, transform=ax3.transAxes, fontsize=10,
             verticalalignment='top', bbox=props3)
 
     ax3.set_title('Error Propagation & Residuals')
@@ -354,10 +354,11 @@ def load_semiconductor_data(file_path):
 # --- Main Execution ---
 if __name__ == "__main__":
     # Choose your input file (conversion function assumed to work)
-    txtpath = "data_files/feb_13_ntype_run1.txt"
+    # txtpath = "data_files/feb_13_ntype_run2.txt"
+    txtpath = "data_files/mar4_ptype_test4.txt"
     csv_path = convert_txt_to_csv(txtpath)
     
-    results = analyze_semiconductor_bandgap(csv_path, min_temp=520, max_temp=600, custom_title=CUSTOM_TITLE)
+    results = analyze_semiconductor_bandgap(csv_path, min_temp=520, max_temp=580, custom_title=CUSTOM_TITLE)
     
     print(f"Bandgap Energy: {results['bandgap_energy_eV']:.4f} ± {results['bandgap_error_eV']:.4f} eV")
     print(f"Standard Error from regression: {results['bandgap_std_err_eV']:.4f} eV")
